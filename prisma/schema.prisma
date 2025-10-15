@@ -1,0 +1,196 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== MODELOS DE AUTENTICACIÓN ====================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  password      String?
+  image         String?
+  role          String    @default("admin")
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ==================== CATÁLOGOS ====================
+
+model TipoVehiculo {
+  id          String     @id @default(cuid())
+  descripcion String     @unique
+  estado      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  vehiculos   Vehiculo[]
+}
+
+model Marca {
+  id          String     @id @default(cuid())
+  descripcion String     @unique
+  estado      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  modelos     Modelo[]
+  vehiculos   Vehiculo[]
+}
+
+model Modelo {
+  id          String     @id @default(cuid())
+  marcaId     String
+  descripcion String
+  estado      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  marca       Marca      @relation(fields: [marcaId], references: [id])
+  vehiculos   Vehiculo[]
+
+  @@unique([marcaId, descripcion])
+}
+
+model TipoCombustible {
+  id          String     @id @default(cuid())
+  descripcion String     @unique
+  estado      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  vehiculos   Vehiculo[]
+}
+
+// ==================== ENTIDADES OPERATIVAS ====================
+
+model Vehiculo {
+  id                  String            @id @default(cuid())
+  descripcion         String
+  noChasis            String            @unique
+  noMotor             String            @unique
+  noPlaca             String            @unique
+  tipoVehiculoId      String
+  marcaId             String
+  modeloId            String
+  tipoCombustibleId   String
+  estado              Boolean           @default(true)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  tipoVehiculo        TipoVehiculo      @relation(fields: [tipoVehiculoId], references: [id])
+  marca               Marca             @relation(fields: [marcaId], references: [id])
+  modelo              Modelo            @relation(fields: [modeloId], references: [id])
+  tipoCombustible     TipoCombustible   @relation(fields: [tipoCombustibleId], references: [id])
+  inspecciones        Inspeccion[]
+  rentas              Renta[]
+}
+
+model Cliente {
+  id              String       @id @default(cuid())
+  nombre          String
+  cedula          String       @unique
+  tarjetaCR       String?
+  limiteCredito   Float        @default(0)
+  tipoPersona     String // "Física" o "Jurídica"
+  estado          Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  inspecciones    Inspeccion[]
+  rentas          Renta[]
+}
+
+model Empleado {
+  id                  String       @id @default(cuid())
+  nombre              String
+  cedula              String       @unique
+  tandaLabor          String // "Matutina", "Vespertina", "Nocturna"
+  porcientoComision   Float        @default(0)
+  fechaIngreso        DateTime
+  estado              Boolean      @default(true)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+  inspecciones        Inspeccion[]
+  rentas              Renta[]
+}
+
+// ==================== PROCESOS ====================
+
+model Inspeccion {
+  id                  String   @id @default(cuid())
+  vehiculoId          String
+  clienteId           String
+  empleadoId          String
+  fecha               DateTime @default(now())
+  tieneRalladuras     Boolean  @default(false)
+  nivelCombustible    String // "Lleno", "3/4", "1/2", "1/4", "Vacío"
+  tieneGomaRespuesta  Boolean  @default(true)
+  tieneGato           Boolean  @default(true)
+  estadoGomas         String // "Excelente", "Bueno", "Regular", "Malo"
+  observaciones       String?  @db.Text
+  estado              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  vehiculo            Vehiculo @relation(fields: [vehiculoId], references: [id])
+  cliente             Cliente  @relation(fields: [clienteId], references: [id])
+  empleado            Empleado @relation(fields: [empleadoId], references: [id])
+}
+
+model Renta {
+  id              String   @id @default(cuid())
+  empleadoId      String
+  vehiculoId      String
+  clienteId       String
+  fechaRenta      DateTime
+  fechaDevolucion DateTime?
+  montoPorDia     Float
+  cantidadDias    Int
+  comentario      String?  @db.Text
+  estado          String // "Activa", "Devuelta", "Cancelada"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  empleado        Empleado @relation(fields: [empleadoId], references: [id])
+  vehiculo        Vehiculo @relation(fields: [vehiculoId], references: [id])
+  cliente         Cliente  @relation(fields: [clienteId], references: [id])
+}
