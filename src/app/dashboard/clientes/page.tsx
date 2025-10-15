@@ -224,6 +224,9 @@ export default function ClientesPage() {
                     type="text"
                     value={formData.cedula}
                     onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+                    pattern="^\d{3}-\d{7}-\d{1}$"
+                    placeholder="000-0000000-0"
+                    title="Formato: 000-0000000-0"
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   />
