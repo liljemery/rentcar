@@ -78,7 +78,20 @@ export default function RentasPage() {
       ])
 
       setRentas(rentasData)
-      setVehiculos(vehiculosData.filter((v: Vehiculo & { estado: boolean }) => v.estado))
+      
+      // Filtrar vehículos disponibles (activos y sin rentas activas)
+      const vehiculosDisponibles = vehiculosData.filter((v: Vehiculo & { estado: boolean }) => {
+        if (!v.estado) return false
+        
+        // Verificar si el vehículo tiene alguna renta activa
+        const tieneRentaActiva = rentasData.some(
+          (r: Renta) => r.vehiculo.id === v.id && r.estado === "Activa"
+        )
+        
+        return !tieneRentaActiva
+      })
+      
+      setVehiculos(vehiculosDisponibles)
       setClientes(clientesData.filter((c: Cliente & { estado: boolean }) => c.estado))
       setEmpleados(empleadosData.filter((e: Empleado & { estado: boolean }) => e.estado))
     } catch (error) {
@@ -303,14 +316,24 @@ export default function RentasPage() {
                     onChange={(e) => setFormData({ ...formData, vehiculoId: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
+                    disabled={vehiculos.length === 0}
                   >
-                    <option value="">Seleccione un vehículo</option>
+                    <option value="">
+                      {vehiculos.length === 0 
+                        ? "No hay vehículos disponibles" 
+                        : "Seleccione un vehículo"}
+                    </option>
                     {vehiculos.map((v) => (
                       <option key={v.id} value={v.id}>
                         {v.marca.descripcion} {v.modelo.descripcion} - {v.noPlaca}
                       </option>
                     ))}
                   </select>
+                  {vehiculos.length === 0 && (
+                    <p className="text-sm text-amber-600 mt-1">
+                      ⚠️ Todos los vehículos están actualmente rentados
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -424,7 +447,8 @@ export default function RentasPage() {
               <div className="flex gap-4 mt-6">
                 <button
                   type="submit"
-                  className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition"
+                  disabled={vehiculos.length === 0}
+                  className="flex-1 bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
                 >
                   Guardar
                 </button>
