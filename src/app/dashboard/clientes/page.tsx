@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { validationCedula } from "@/lib/validation"
 
 interface Cliente {
   id: string
@@ -17,6 +18,7 @@ export default function ClientesPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null)
+  const [cedulaError, setCedulaError] = useState("")
   const [formData, setFormData] = useState({
     nombre: "",
     cedula: "",
@@ -44,6 +46,14 @@ export default function ClientesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validar cédula
+    if (!validationCedula(formData.cedula)) {
+      setCedulaError("La cédula ingresada no es válida")
+      return
+    }
+    
+    setCedulaError("")
 
     try {
       if (editingCliente) {
@@ -78,6 +88,7 @@ export default function ClientesPage() {
       estado: true
     })
     setEditingCliente(null)
+    setCedulaError("")
   }
 
   const handleEdit = (cliente: Cliente) => {
@@ -223,13 +234,21 @@ export default function ClientesPage() {
                   <input
                     type="text"
                     value={formData.cedula}
-                    onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, cedula: e.target.value })
+                      setCedulaError("")
+                    }}
                     pattern="^\d{3}-\d{7}-\d{1}$"
                     placeholder="000-0000000-0"
                     title="Formato: 000-0000000-0"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      cedulaError ? "border-red-500" : "border-gray-300"
+                    }`}
                     required
                   />
+                  {cedulaError && (
+                    <p className="text-red-600 text-sm mt-1">{cedulaError}</p>
+                  )}
                 </div>
 
                 <div>
