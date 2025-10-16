@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
 
 interface Vehiculo {
   id: string
@@ -35,6 +37,7 @@ export default function ReportesPage() {
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([])
   const [clientes, setClientes] = useState<Cliente[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isExporting, setIsExporting] = useState(false)
   
   const [filters, setFilters] = useState({
     fechaInicio: "",
@@ -148,6 +151,117 @@ export default function ReportesPage() {
     })
   }
 
+  const exportToPDF = () => {
+    setIsExporting(true)
+    
+    try {
+      const doc = new jsPDF()
+    
+    // Título
+    doc.setFontSize(20)
+    doc.setTextColor(40, 40, 40)
+    doc.text("RentCar - Reporte de Rentas", 14, 20)
+    
+    // Fecha del reporte
+    doc.setFontSize(10)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Generado: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`, 14, 28)
+    
+    // Filtros aplicados
+    doc.setFontSize(12)
+    doc.setTextColor(40, 40, 40)
+    doc.text("Filtros Aplicados:", 14, 38)
+    doc.setFontSize(9)
+    let yPos = 44
+    
+    if (filters.fechaInicio) {
+      doc.text(`• Fecha Inicio: ${new Date(filters.fechaInicio).toLocaleDateString()}`, 14, yPos)
+      yPos += 5
+    }
+    if (filters.fechaFin) {
+      doc.text(`• Fecha Fin: ${new Date(filters.fechaFin).toLocaleDateString()}`, 14, yPos)
+      yPos += 5
+    }
+    if (filters.estado) {
+      doc.text(`• Estado: ${filters.estado}`, 14, yPos)
+      yPos += 5
+    }
+    if (filters.tipoVehiculo) {
+      doc.text(`• Tipo de Vehículo: ${filters.tipoVehiculo}`, 14, yPos)
+      yPos += 5
+    }
+    
+    if (!filters.fechaInicio && !filters.fechaFin && !filters.estado && !filters.tipoVehiculo) {
+      doc.text("• Sin filtros aplicados (Todos los registros)", 14, yPos)
+      yPos += 5
+    }
+    
+    yPos += 5
+    
+    // Estadísticas
+    doc.setFontSize(12)
+    doc.setTextColor(40, 40, 40)
+    doc.text("Resumen Ejecutivo:", 14, yPos)
+    yPos += 8
+    
+    doc.setFontSize(10)
+    const statsData = [
+      ["Total de Rentas", stats.totalRentas.toString()],
+      ["Rentas Activas", stats.rentasActivas.toString()],
+      ["Rentas Devueltas", stats.rentasDevueltas.toString()],
+      ["Ingresos Totales", `$${stats.ingresoTotal.toFixed(2)}`]
+    ]
+    
+    autoTable(doc, {
+      startY: yPos,
+      head: [["Métrica", "Valor"]],
+      body: statsData,
+      theme: "grid",
+      headStyles: { fillColor: [79, 70, 229] },
+      margin: { left: 14 }
+    })
+    
+    // Tabla de rentas
+    const tableData = filteredRentas.map(renta => [
+      `${renta.vehiculo.marca.descripcion} ${renta.vehiculo.modelo.descripcion}`,
+      renta.cliente.nombre,
+      new Date(renta.fechaRenta).toLocaleDateString(),
+      renta.cantidadDias.toString(),
+      `$${(renta.montoPorDia * renta.cantidadDias).toFixed(2)}`,
+      renta.estado
+    ])
+    
+    // @ts-ignore
+    const finalY = doc.lastAutoTable.finalY || yPos + 40
+    
+    autoTable(doc, {
+      startY: finalY + 10,
+      head: [["Vehículo", "Cliente", "Fecha", "Días", "Total", "Estado"]],
+      body: tableData,
+      theme: "striped",
+      headStyles: { fillColor: [79, 70, 229] },
+      styles: { fontSize: 8 },
+      columnStyles: {
+        0: { cellWidth: 40 },
+        1: { cellWidth: 35 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 15 },
+        4: { cellWidth: 25 },
+        5: { cellWidth: 25 }
+      }
+    })
+    
+      // Guardar PDF
+      const fileName = `reporte-rentas-${new Date().toISOString().split('T')[0]}.pdf`
+      doc.save(fileName)
+    } catch (error) {
+      console.error("Error al generar PDF:", error)
+      alert("Error al generar el PDF. Por favor intenta de nuevo.")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const tiposVehiculos = [...new Set(vehiculos.map(v => v.tipoVehiculo.descripcion))]
 
   if (isLoading) {
@@ -156,9 +270,33 @@ export default function ReportesPage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Reportes y Consultas</h2>
-        <p className="text-gray-600">Analiza las rentas con filtros personalizados</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Reportes y Consultas</h2>
+          <p className="text-gray-600">Analiza las rentas con filtros personalizados</p>
+        </div>
+        <button
+          onClick={exportToPDF}
+          disabled={filteredRentas.length === 0 || isExporting}
+          className="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed shadow-lg"
+        >
+          {isExporting ? (
+            <>
+              <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Generando...
+            </>
+          ) : (
+            <>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Exportar PDF
+            </>
+          )}
+        </button>
       </div>
 
       {/* Estadísticas */}
