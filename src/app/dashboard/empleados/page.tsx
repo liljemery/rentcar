@@ -277,6 +277,8 @@ export default function EmpleadosPage() {
                   <input
                     type="number"
                     step="0.01"
+                    min="0"
+                    max="100"
                     value={formData.porcientoComision}
                     onChange={(e) => setFormData({ ...formData, porcientoComision: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
